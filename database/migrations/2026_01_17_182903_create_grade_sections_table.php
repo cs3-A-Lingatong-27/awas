@@ -9,19 +9,17 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
-        Schema::create('grade_sections', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-        });
-    public function down(): void
-    {
-        Schema::dropIfExists('grade_sections');
-    }
-};
 
-    }
+    public function up(): void
+{
+    Schema::create('grade_sections', function (Blueprint $table) {
+        $table->id();
+        $table->integer('grade_level');
+        $table->string('section', 50);
+        $table->timestamps();
+    });
+}
+    
 
     /**
      * Reverse the migrations.

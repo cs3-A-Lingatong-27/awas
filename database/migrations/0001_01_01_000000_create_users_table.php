@@ -9,7 +9,7 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
+public function up(): void
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
@@ -17,6 +17,13 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            
+            // --- ADD THESE COLUMNS HERE ---
+            $table->string('role')->default('student'); 
+            $table->integer('grade_level')->nullable();
+            $table->string('section')->nullable();
+            // ------------------------------
+
             $table->rememberToken();
             $table->timestamps();
         });
