@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard</title>
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
   @if(session('success'))
@@ -222,5 +223,16 @@
     });
 }
     </script>
+    <div id="panelOverlay" class="panel-overlay" onclick="closeAllPanels()"></div>
+
+<div id="assessmentPanel" class="side-panel">
+    <div class="panel-header">
+        <h3 id="panelDateTitle">Date Details</h3>
+        <button onclick="closeAllPanels()" class="close-btn">&times;</button>
+    </div>
+    <div class="panel-body">
+        <p>No events or assessments scheduled for this day.</p>
+    </div>
+</div>
 </body>
 </html>
