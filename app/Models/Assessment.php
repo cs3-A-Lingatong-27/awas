@@ -8,7 +8,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Assessment extends Model
 {
     // Allows these fields to be saved to the database
-    protected $fillable = ['subject_id', 'room_id', 'type', 'title', 'description', 'scheduled_at'];
+   protected $fillable = [
+        'subject_id', 
+        'room_id', 
+        'type', 
+        'title', 
+        'description', 
+        'scheduled_at', 
+        'grade_level' // <--- CRITICAL: Add this
+    ];
 
     // Link to the Subject
     public function subject(): BelongsTo

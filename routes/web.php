@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\AssessmentController;
+use App\Http\Controllers\DashboardController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 use App\Models\Room;
@@ -11,39 +13,36 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', function () {
-    // 1. Get current date and user
-  $date = \Carbon\Carbon::now();
-    return view('dashboard', [ // <--- This MUST match your filename
-        'date' => $date,
-        'daysInMonth' => $date->daysInMonth,
-        'firstDayOfMonth' => $date->copy()->startOfMonth()->dayOfWeek,
-        'notifications' => [6 => 2, 20 => 5]
-    ]);
+// THIS SECTION IS THE FIX
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    
+    // API for the View Panel
+    Route::get('/api/assessments-by-date', function (Request $request) {
+        return \App\Models\Assessment::whereDate('scheduled_at', $request->date)
+            ->get()
+            ->map(function($a) {
+                return [
+                    'id' => $a->id,
+                    'title' => $a->title,
+                    'description' => $a->description,
+                    'due_time' => \Carbon\Carbon::parse($a->scheduled_at)->format('g:i A')
+                ];
+            });
+    });
 
-    // 2. Prepare Calendar Data
-    $data = [
-        'date' => $date,
-        'daysInMonth' => $date->daysInMonth,
-        'firstDayOfMonth' => $date->copy()->startOfMonth()->dayOfWeek,
-        'rooms' => \App\Models\Room::all(),
-        'notifications' => [6 => 2, 20 => 5] // Placeholder for dots on calendar
-    ];
-
-    // 3. Smart Redirect: If student, show student dashboard, else show main calendar
-    if ($user->role === 'student') {
-        return view('student.dashboard', $data);
-    }
-
-    return view('dashboard', $data);
-})->middleware(['auth', 'verified'])->name('dashboard');
-
-Route::middleware('auth')->group(function () {
+    // Delete Route
+    Route::delete('/assessments/{assessment}', [AssessmentController::class, 'destroy'])->name('assessments.destroy');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    
+    
+    // The rest of your authenticated routes
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+    Route::post('/assessments', [AssessmentController::class, 'store'])->name('assessments.store');
 
-    // Keep the enroll logic so it's ready when you need it
+    // Enroll Logic
     Route::post('/admin/enroll', function (Request $request) {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -53,7 +52,7 @@ Route::middleware('auth')->group(function () {
             'password' => 'required|min:8',
         ]);
 
-        User::create([
+        \App\Models\User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => bcrypt($validated['password']),

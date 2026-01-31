@@ -46,24 +46,42 @@
         </header>
 
 <main class="main">
-    <aside class="sidebar">
-        <div class="menu-icon">☰</div>
-        <div class="menu-title">Menu</div>
-        
-        <div class="menu-item active" onclick="showTab('calendar')">Dashboard</div>
-        
-        @if(auth()->user()->role === 'admin')
-            <div class="menu-item" onclick="showTab('enrollment')">Enrollment</div>
-        @endif
+<aside id="sidebar" class="sidebar">
+    <div class="menu-icon" onclick="toggleSidebar()">☰</div>
+    <div class="menu-title">Menu</div>
+    
+    <div class="menu-item active" onclick="showTab('calendar')">Dashboard</div>
+    
+    @if(auth()->user()->role === 'admin')
+        <div class="menu-item" onclick="showTab('enrollment')">Enrollment</div>
+    @endif
 
-        <div class="menu-item">Subjects</div>
-        <div class="menu-item">Grades</div>
-    </aside>
+    <div class="menu-item">Subjects</div>
+    <div class="menu-item">Grades</div>
+</aside>
 
     <section id="calendar-tab" class="content-tab">
         <section class="calendar-section">
             <div class="calendar-title">{{ $date->format('F Y') }}</div>
-            
+            <div class="calendar-nav" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 0;">
+    <form action="{{ route('dashboard') }}" method="GET" class="flex gap-2">
+        <select name="month" onchange="this.form.submit()" class="border p-1 rounded">
+            @foreach(range(1, 12) as $m)
+                <option value="{{ $m }}" {{ $date->month == $m ? 'selected' : '' }}>
+                    {{ date('F', mktime(0, 0, 0, $m, 1)) }}
+                </option>
+            @endforeach
+        </select>
+
+        <select name="year" onchange="this.form.submit()" class="border p-1 rounded">
+            @for($y = 2024; $y <= 2030; $y++)
+                <option value="{{ $y }}" {{ $date->year == $y ? 'selected' : '' }}>{{ $y }}</option>
+            @endfor
+        </select>
+    </form>
+    
+    <h2 class="text-xl font-bold">{{ $date->format('F Y') }}</h2>
+</div>
             <div class="calendar-grid">
                 <div class="calendar-header">Sun</div>
                 <div class="calendar-header">Mon</div>
@@ -77,15 +95,18 @@
                     <div class="calendar-day empty" style="background: #fafafa;"></div>
                 @endfor
 
-                @for ($day = 1; $day <= $daysInMonth; $day++)
-                    <div class="calendar-day" 
-                         onclick="openPanel({{ $day }}, '{{ $date->format('F') }} {{ $day }}, {{ $date->year }}')">
-                        {{ $day }}
-                        @if(isset($notifications[$day]))
-                            <div class="notification-dot">{{ $notifications[$day] }}</div>
-                        @endif
-                    </div>
-                @endfor
+           @for ($day = 1; $day <= $daysInMonth; $day++)
+    <div class="calendar-day" 
+         onclick="openPanel({{ $day }}, '{{ $date->format('F') }} {{ $day }}, {{ $date->year }}')">
+        
+        {{ $day }}
+
+        {{-- Show real count from the controller --}}
+        @if(isset($notifications[$day]) && $notifications[$day] > 0)
+            <div class="notification-dot">{{ $notifications[$day] }}</div>
+        @endif
+    </div>
+@endfor
             </div>
         </section>
     </section>
@@ -188,14 +209,126 @@
         </form>
     </div>
 </div>
+<div id="viewPanel" class="side-panel">
+    <div class="panel-header">
+        <h3 id="viewPanelDateTitle" class="font-bold text-xl text-gray-800">Assessments</h3>
+        <button onclick="closeAllPanels()" class="close-btn text-2xl">&times;</button>
+    </div>
+    <div class="panel-body mt-4">
+        <div id="assessmentList">
+            </div>
+    </div>
+</div>
 
     <script>
-        function openPanel(day, dateString) {
-            document.getElementById('panelDateTitle').innerText = dateString;
-            document.getElementById('assessmentPanel').classList.add('open');
-            document.getElementById('panelOverlay').classList.add('active');
-        }
+let tempDate = '';
+let tempDateString = '';
 
+// This replaces your old openPanel
+function openPanel(day, dateString) {
+    const year = {{ $date->year }};
+    const month = String({{ $date->month }}).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    
+    tempDate = `${year}-${month}-${dayStr}`;
+    tempDateString = dateString;
+
+    // Check role from PHP
+    const userRole = "{{ auth()->user()->role }}";
+    const scheduleBtn = document.getElementById('scheduleBtn');
+
+    // If the button exists, hide it for students
+    if (scheduleBtn) {
+        if (userRole === 'student') {
+            scheduleBtn.classList.add('hidden'); // Hide for students
+        } else {
+            scheduleBtn.classList.remove('hidden'); // Show for teachers
+        }
+    }
+
+    // Show the Choice Modal
+    document.getElementById('choiceDateTitle').innerText = dateString;
+    document.getElementById('choiceModal').classList.remove('hidden');
+    document.getElementById('choiceModal').classList.add('flex');
+}
+async function handleChoice(action) {
+    closeChoiceModal();
+    
+    if (action === 'schedule') {
+        document.getElementById('panelDateTitle').innerText = "Schedule for " + tempDateString;
+        document.getElementById('hiddenDate').value = tempDate;
+        document.getElementById('assessmentPanel').classList.add('open');
+        document.getElementById('panelOverlay').classList.add('active');
+    } else {
+        // --- THIS IS THE PART TO FIX ---
+        const listContainer = document.getElementById('assessmentList');
+        
+        // Open the View Panel first so the user sees something is happening
+        document.getElementById('viewPanelDateTitle').innerText = "Assessments on " + tempDateString;
+        document.getElementById('viewPanel').classList.add('open');
+        document.getElementById('panelOverlay').classList.add('active');
+        
+        listContainer.innerHTML = '<p class="text-blue-500 italic p-4">Loading assessments...</p>';
+
+        try {
+            // Fetch the filtered assessments based on the student's grade
+            const response = await fetch(`/api/assessments-by-date?date=${tempDate}`);
+            const assessments = await response.json();
+
+            if (assessments.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-10">
+                        <p class="text-gray-500 italic">No assessments scheduled for your grade level on this day.</p>
+                    </div>`;
+            } else {
+                listContainer.innerHTML = assessments.map(a => `
+<div id="assessment-item-${a.id}" class="p-3 bg-white border-l-4 border-blue-600 rounded shadow-sm mb-2">
+    <div class="flex justify-between items-start">
+        <div>
+            <span class="text-[10px] uppercase tracking-wider font-bold text-blue-600">${a.subject}</span>
+            <div class="font-bold text-gray-800">${a.title}</div>
+            <div class="text-xs text-gray-500">${a.description || ''}</div>
+        </div>
+    </div>
+    <div class="text-xs text-gray-400 mt-2 font-mono">🕒 Deadline: ${a.due_time}</div>
+</div>
+                `).join('');
+            }
+        } catch (error) {
+            listContainer.innerHTML = '<p class="text-red-500 p-4">Error loading data. Please check your connection.</p>';
+        }
+    }
+}
+
+function closeChoiceModal() {
+    document.getElementById('choiceModal').classList.add('hidden');
+    document.getElementById('choiceModal').classList.remove('flex');
+}
+    const subjectMap = {
+    "7": ["Math 1", "Integrated Science 1"],
+    "8": ["Math 2", "Math 3", "Integrated Science 2"],
+    "9": ["Math 4", "Chemistry 1", "Physics 1", "Biology 1"],
+    "10": ["Math 5", "Chemistry 2", "Physics 2", "Biology 2"],
+    "11": ["Math 6 Level 1", "Math 6 Level 2", "Physics 3 Core", "Bio", "Chem", "Physics 3 Elective", "Biology 3 Elective", "Chemistry 3 Elective"],
+    "12": ["Math 7 Level 1/2", "Physics 4 Core", "Bio", "Chem", "Physics 4 Elective", "Biology 4 Elective", "Chemistry 4 Elective"]
+};
+
+function updateSubjects() {
+    const grade = document.getElementById('gradeSelect').value;
+    const subjectSelect = document.getElementById('subjectSelect');
+    
+    // Clear existing options
+    subjectSelect.innerHTML = '<option value="">Select Subject</option>';
+    
+    if (grade && subjectMap[grade]) {
+        subjectMap[grade].forEach(subject => {
+            const option = document.createElement('option');
+            option.value = subject;
+            option.text = subject;
+            subjectSelect.appendChild(option);
+        });
+    }
+}
         function openScholarPanel() {
             document.getElementById('scholarPanel').classList.add('open');
             document.getElementById('panelOverlay').classList.add('active');
@@ -224,14 +357,79 @@
 }
     </script>
     <div id="panelOverlay" class="panel-overlay" onclick="closeAllPanels()"></div>
-
+    
 <div id="assessmentPanel" class="side-panel">
     <div class="panel-header">
-        <h3 id="panelDateTitle">Date Details</h3>
+        <h3 id="panelDateTitle">Schedule Assessment</h3>
         <button onclick="closeAllPanels()" class="close-btn">&times;</button>
     </div>
     <div class="panel-body">
-        <p>No events or assessments scheduled for this day.</p>
+        <form action="{{ route('assessments.store') }}" method="POST" class="mini-form">
+            @csrf
+            <input type="hidden" name="due_date" id="hiddenDate">
+
+            <div class="form-group">
+                <label>Assessment Title</label>
+                <input type="text" name="title" placeholder="e.g., Long Test in Math" required>
+            </div>
+
+            <div class="form-group">
+                <label>Target Grade Level</label>
+                <select name="grade_level" id="gradeSelect" onchange="updateSubjects()" required>
+                    <option value="">Select Grade</option>
+                    <option value="7">Grade 7</option>
+                    <option value="8">Grade 8</option>
+                    <option value="9">Grade 9</option>
+                    <option value="10">Grade 10</option>
+                    <option value="11">Grade 11</option>
+                    <option value="12">Grade 12</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Subject</label>
+                <select name="subject" id="subjectSelect" required>
+                    <option value="">Select a Grade first</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Assessment Type</label>
+                <select name="type" required>
+                    <option value="Formative">Formative Assessment</option>
+                    <option value="Alternative">Alternative Assessment (AA)</option>
+                    <option value="Long Test">Long Test</option>
+                    <option value="Summative">Summative Assessment</option>
+                </select>
+            </div>
+
+            <div class="form-row" style="display: flex; gap: 10px;">
+                <div class="form-group" style="flex: 1;">
+                    <label>Deadline Time</label>
+                    <input type="time" name="due_time" required>
+                </div>
+            </div>
+
+            <button type="submit" class="scholar-btn" style="width: 100%; margin-top: 15px;">Save Assessment</button>
+        </form>
+    </div>
+</div>
+<div id="choiceModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-lg shadow-xl p-6 w-80 text-center">
+        <h3 id="choiceDateTitle" class="text-lg font-bold mb-4 text-gray-800">Date</h3>
+        <div class="flex flex-col gap-3">
+            <button onclick="handleChoice('view')" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition">
+                View Assessments
+            </button>
+            
+            <button id="scheduleBtn" onclick="handleChoice('schedule')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-4 rounded transition">
+                Schedule New
+            </button>
+            
+            <button onclick="closeChoiceModal()" class="text-gray-500 hover:text-gray-700 text-sm mt-2">
+                Cancel
+            </button>
+        </div>
     </div>
 </div>
 </body>

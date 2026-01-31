@@ -51,6 +51,32 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
 }
+/* Sidebar base state - add transition */
+.sidebar {
+    width: 260px;
+    min-width: 260px;
+    background: #f8f9fa;
+    transition: all 0.3s ease-in-out;
+    overflow: hidden; /* This stops the text from bunching up */
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar.collapsed {
+    width: 0;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    border: none;
+}
+
+/* Ensure the hamburger icon in the topbar is a pointer */
+.menu-icon {
+    cursor: pointer;
+    font-size: 24px;
+    margin-right: 20px;
+    user-select: none;
+}
 
 .menu-item:hover {
   background: #f0f0ff;
@@ -90,11 +116,11 @@ body {
 }
 
 .calendar-day {
-  min-height: 110px;
-  padding: 10px;
-  border: 1px solid var(--border-black);
-  position: relative;
-  transition: background 0.2s, transform 0.1s;
+    position: relative; /* Essential for dot positioning */
+    min-height: 100px;
+    border: 1px solid #e5e7eb;
+    padding: 10px;
+    cursor: pointer;
 }
 
 /* Calendar Day Hover Effect */
@@ -105,28 +131,39 @@ body {
   z-index: 2;
   box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
+.grade-item-card {
+    transition: transform 0.2s;
+}
+.grade-item-card:hover {
+    transform: translateX(5px);
+}
 
 /* Red Notifications */
 .notification-dot {
-  background: red;
-  color: white;
-  font-size: 11px;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: absolute;
-  top: 8px;
-  right: 8px;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: #ef4444; /* PSHS Red */
+    color: white;
+    border-radius: 9999px;
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 /* --- Responsive Rules --- */
 @media (max-width: 900px) {
-  .main {
-    flex-direction: column;
-  }
+.main {
+    display: flex;
+    flex-direction: row; /* Ensure they stay side-by-side */
+    width: 100%;
+    overflow: hidden;
+}
   .sidebar {
     width: 100%;
     display: flex;
@@ -140,9 +177,10 @@ body {
   }
 }
 .content-tab {
-    flex: 1; /* This is the "Magic" line that stops the squishing */
+    flex: 1; /* This forces the calendar to take up ALL remaining space */
     padding: 30px;
-    overflow-y: auto;
+    background: white;
+    min-width: 0; /* Critical for flexbox math */
 }
 
 @media (max-width: 600px) {
