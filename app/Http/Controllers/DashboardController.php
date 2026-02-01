@@ -10,31 +10,41 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
+        // Get current month/year from request or default to now
         $month = $request->get('month', date('m'));
         $year = $request->get('year', date('Y'));
+        
+        // Create Carbon instance for the selected month
         $date = Carbon::createFromDate($year, $month, 1);
 
         $daysInMonth = $date->daysInMonth;
         $firstDayOfMonth = $date->dayOfWeek;
 
-        $user = auth()->user();
+        // Use startOfMonth and endOfMonth for a more reliable database query
+        $startOfMonth = $date->copy()->startOfMonth()->toDateString();
+        $endOfMonth = $date->copy()->endOfMonth()->toDateString();
 
-        // 1. Start the query for the dots
-        $query = Assessment::whereMonth('due_date', $date->month)
-                           ->whereYear('due_date', $date->year);
+        // 1. Fetch assessments using a Date Range
+        // We check 'scheduled_at' and 'due_date' to ensure compatibility with various DB naming conventions
+        $query = Assessment::where(function($q) use ($startOfMonth, $endOfMonth) {
+            $q->whereBetween('scheduled_at', [$startOfMonth, $endOfMonth])
+              ->orWhereBetween('due_date', [$startOfMonth, $endOfMonth]);
+        });
 
-        // 2. CRITICAL: If student, filter by their grade_level
-        // We use string conversion to ensure '12' matches '12' regardless of type
-        if ($user->role === 'student') {
-            $query->where('grade_level', (string)$user->grade_level);
-        }
-
+        // 2. Process the results for the calendar view (Red Dots)
         $notifications = $query->get()
             ->groupBy(function($val) {
-                return Carbon::parse($val->due_date)->format('j');
+                // Use whichever column is actually populated in the database
+                $dateValue = $val->scheduled_at ?? $val->due_date;
+                return Carbon::parse($dateValue)->format('j');
             })
             ->map->count();
 
-        return view('dashboard', compact('date', 'notifications', 'daysInMonth', 'firstDayOfMonth'));
+        return view('dashboard', compact(
+            'date', 
+            'notifications', 
+            'daysInMonth', 
+            'firstDayOfMonth'
+        ));
     }
 }

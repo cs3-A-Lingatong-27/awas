@@ -8,6 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body>
+    
   @if(session('success'))
     <div id="successToast" class="toast-notification">
         <span class="icon">✅</span> {{ session('success') }}
@@ -34,7 +35,19 @@
  <div class="top-actions">
     @auth
         <button class="scholar-btn" onclick="openScholarPanel()">
-            <span class="user-icon">👤</span> Scholar: {{ auth()->user()->name }}
+            <div class="flex items-center gap-2 bg-blue-700/50 px-4 py-2 rounded-full border border-blue-400/30">
+    <i class="fas fa-user text-blue-200"></i>
+    <span class="text-white font-bold">
+        @if(auth()->user()->role === 'admin')
+            Admin: 
+        @elseif(auth()->user()->role === 'teacher')
+            Teacher: 
+        @else
+            Scholar: 
+        @endif
+        {{ auth()->user()->name }}
+    </span>
+</div>
         </button>
     @endauth
 
