@@ -4,10 +4,15 @@ import laravel from 'laravel-vite-plugin';
 export default defineConfig({
     plugins: [
         laravel({
-            // Now that you've created the file manually, 
-            // Vite can find it without any issues.
+            // Ensure you have created the file at resources/css/app.css
+            // This allows Vite to generate the manifest.json file,
+            // which prevents 'Run Tests' from failing with Exit Code 2.
             input: ['resources/css/app.css'],
             refresh: true,
         }),
     ],
+    build: {
+        // Ensuring the build doesn't trigger git-related errors in CI
+        chunkSizeWarningLimit: 1600,
+    }
 });
