@@ -4,15 +4,18 @@ import laravel from 'laravel-vite-plugin';
 export default defineConfig({
     plugins: [
         laravel({
-            // Ensure you have created the file at resources/css/app.css
-            // This allows Vite to generate the manifest.json file,
-            // which prevents 'Run Tests' from failing with Exit Code 2.
-            input: ['resources/css/app.css'],
+            // We include both because your Blade layouts (guest.blade.php, app.blade.php)
+            // are likely calling @vite(['resources/css/app.css', 'resources/js/app.js'])
+            input: [
+                'resources/css/app.css',
+                'resources/js/app.js'
+            ],
             refresh: true,
         }),
     ],
     build: {
-        // Ensuring the build doesn't trigger git-related errors in CI
+        manifest: true,
+        outDir: 'public/build',
         chunkSizeWarningLimit: 1600,
-    }
+    },
 });
